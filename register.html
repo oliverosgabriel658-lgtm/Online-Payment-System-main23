@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>PayThru Register</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:'Inter',sans-serif;
+}
+
+body{
+height:100vh;
+display:flex;
+align-items:center;
+justify-content:center;
+background:linear-gradient(#eef2f7,#dce5f3);
+}
+
+.card{
+width:380px;
+background:white;
+padding:40px;
+border-radius:16px;
+box-shadow:0 10px 30px rgba(0,0,0,0.08);
+text-align:center;
+}
+
+.logo{
+width:60px;
+height:60px;
+background:#2f6fed;
+color:white;
+display:flex;
+align-items:center;
+justify-content:center;
+border-radius:14px;
+font-size:26px;
+margin:0 auto 15px;
+}
+
+h1{
+font-size:26px;
+font-weight:600;
+margin-bottom:6px;
+}
+
+.subtitle{
+color:#6b7280;
+font-size:14px;
+margin-bottom:25px;
+}
+
+label{
+display:block;
+text-align:left;
+margin-top:14px;
+font-size:14px;
+}
+
+.input-group{
+position:relative;
+}
+
+input{
+width:100%;
+padding:12px;
+margin-top:6px;
+border-radius:10px;
+border:1px solid #e5e7eb;
+font-size:14px;
+}
+
+.toggle{
+position:absolute;
+right:10px;
+top:16px;
+cursor:pointer;
+font-size:13px;
+color:#2f6fed;
+}
+
+.strength{
+font-size:12px;
+margin-top:4px;
+text-align:left;
+}
+
+.register-btn{
+margin-top:20px;
+width:100%;
+background:#2f6fed;
+border:none;
+padding:12px;
+color:white;
+border-radius:10px;
+cursor:pointer;
+font-size:15px;
+}
+
+.register-btn:hover{
+background:#1e55d6;
+}
+
+.login-link{
+margin-top:18px;
+font-size:14px;
+color:#6b7280;
+}
+
+.login-link a{
+color:#2f6fed;
+text-decoration:none;
+font-weight:500;
+}
+
+.error{
+color:red;
+font-size:12px;
+text-align:left;
+margin-top:3px;
+}
+
+.success{
+color:green;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="card">
+
+<div class="logo">$</div>
+
+<h1>Create Account</h1>
+<p class="subtitle">Register your PayThru wallet</p>
+
+<form id="registerForm">
+
+<label>Full Name</label>
+<input type="text" required placeholder="Enter your full name">
+
+<label>Email Address</label>
+<input type="email" id="email" required placeholder="Enter your email">
+<div id="emailMsg" class="strength"></div>
+
+<label>Phone Number</label>
+<input type="text" id="phone" required maxlength="11" placeholder="09XXXXXXXXX">
+<div id="phoneMsg" class="strength"></div>
+
+<label>MPIN</label>
+<div class="input-group">
+<input type="password" id="mpin" maxlength="6" required placeholder="Enter 4-6 digit MPIN">
+<span class="toggle" onclick="toggleMPIN()">Show</span>
+</div>
+<div id="mpinStrength" class="strength"></div>
+
+<label>Confirm MPIN</label>
+<input type="password" id="confirmMpin" maxlength="6" required placeholder="Confirm MPIN">
+<div id="confirmMsg" class="strength"></div>
+
+<button class="register-btn">Register</button>
+
+</form>
+
+<div class="login-link">
+Already have an account?
+<a href="login.html">Login</a>
+</div>
+
+</div>
+
+<script>
+
+// EMAIL VALIDATION
+document.getElementById("email").addEventListener("input", function(){
+
+let email=this.value
+let msg=document.getElementById("emailMsg")
+
+if(email.includes("@") && email.includes(".")){
+msg.textContent="Valid email"
+msg.className="strength success"
+}else{
+msg.textContent="Invalid email format"
+msg.className="strength error"
+}
+
+})
+
+// PHONE VALIDATION (NUMBERS ONLY)
+
+document.getElementById("phone").addEventListener("input", function(){
+
+this.value=this.value.replace(/\D/g,'')
+
+let msg=document.getElementById("phoneMsg")
+
+if(this.value.length==11){
+msg.textContent="Valid phone number"
+msg.className="strength success"
+}else{
+msg.textContent="Phone must be 11 digits"
+msg.className="strength error"
+}
+
+})
+
+// MPIN STRENGTH
+
+document.getElementById("mpin").addEventListener("input", function(){
+
+this.value=this.value.replace(/\D/g,'')
+
+let strength=document.getElementById("mpinStrength")
+
+if(this.value.length<4){
+strength.textContent="MPIN too short"
+strength.className="strength error"
+}
+else if(this.value.length<=5){
+strength.textContent="Medium MPIN"
+strength.className="strength"
+}
+else{
+strength.textContent="Strong MPIN"
+strength.className="strength success"
+}
+
+})
+
+// CONFIRM MPIN
+
+document.getElementById("confirmMpin").addEventListener("input", function(){
+
+let mpin=document.getElementById("mpin").value
+let confirm=this.value
+let msg=document.getElementById("confirmMsg")
+
+if(mpin===confirm){
+msg.textContent="MPIN matched"
+msg.className="strength success"
+}else{
+msg.textContent="MPIN does not match"
+msg.className="strength error"
+}
+
+})
+
+// SHOW / HIDE MPIN
+
+function toggleMPIN(){
+
+let mpin=document.getElementById("mpin")
+
+if(mpin.type==="password"){
+mpin.type="text"
+}else{
+mpin.type="password"
+}
+
+}
+
+</script>
+
+</body>
+</html>

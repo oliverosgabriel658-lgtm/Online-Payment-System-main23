@@ -59,69 +59,42 @@ font-size:14px;
 margin-bottom:25px;
 }
 
-.tabs{
-display:flex;
-background:#eef1f6;
-border-radius:10px;
-padding:4px;
-margin-bottom:25px;
-}
-
-.tabs button{
-flex:1;
-border:none;
-background:none;
-padding:10px;
-font-weight:500;
-border-radius:8px;
-cursor:pointer;
-}
-
-.tabs .active{
-background:white;
-box-shadow:0 1px 4px rgba(0,0,0,0.08);
-}
-
 label{
 display:block;
-font-size:14px;
 text-align:left;
-margin-bottom:6px;
-margin-top:12px;
+margin-top:14px;
+font-size:14px;
 }
 
 .input-group{
-display:flex;
-align-items:center;
-border:1px solid #e5e7eb;
-border-radius:10px;
-padding:10px 12px;
-gap:10px;
+position:relative;
 }
 
-.input-group input{
-border:none;
-outline:none;
+input{
 width:100%;
+padding:12px;
+margin-top:6px;
+border-radius:10px;
+border:1px solid #e5e7eb;
 font-size:14px;
 }
 
-.form-row{
-display:flex;
-justify-content:space-between;
-align-items:center;
-margin-top:12px;
+.toggle{
+position:absolute;
+right:10px;
+top:16px;
+cursor:pointer;
 font-size:13px;
+color:#2f6fed;
 }
 
 .login-btn{
-margin-top:18px;
+margin-top:20px;
 width:100%;
 background:#2f6fed;
 border:none;
 padding:12px;
 color:white;
-font-weight:500;
 border-radius:10px;
 cursor:pointer;
 font-size:15px;
@@ -131,8 +104,18 @@ font-size:15px;
 background:#1e55d6;
 }
 
+.strength{
+font-size:12px;
+margin-top:4px;
+text-align:left;
+}
+
+.error{
+color:red;
+}
+
 .signup{
-margin-top:20px;
+margin-top:18px;
 font-size:14px;
 color:#6b7280;
 }
@@ -150,50 +133,69 @@ font-weight:500;
 
 <div class="card">
 
-<div class="logo">💲</div>
+<div class="logo">$</div>
 
 <h1>PayThru</h1>
-<p class="subtitle">Welcome back! Please login to your account.</p>
-
-<div class="tabs">
-<button class="active">Login</button>
-<button>Register</button>
-</div>
+<p class="subtitle">Login to your account</p>
 
 <form>
 
 <label>Email Address</label>
+<input type="email" required placeholder="Enter your email">
+
+<label>MPIN</label>
+
 <div class="input-group">
-<input type="email" placeholder="Enter your email">
+<input type="password" id="mpin" maxlength="6" placeholder="Enter your MPIN">
+<span class="toggle" onclick="toggleMPIN()">Show</span>
 </div>
 
-<label>Password</label>
-<div class="input-group">
-<input type="password" placeholder="Enter your password">
-</div>
+<div id="mpinMsg" class="strength"></div>
 
-<div class="form-row">
-<label>
-<input type="checkbox"> Remember me
-</label>
-
-<a href="#">Forgot password?</a>
-</div>
-
-<button class="login-btn">→ Login</button>
+<button class="login-btn">Login</button>
 
 </form>
 
 <div class="signup">
-Don't have an account? <a href="#">Sign up</a>
-</div>
-
-<label>Password</label>
-<div class="input-group">
-<input type="password" placeholder="Enter your password">
+Don't have an account?
+<a href="register.html">Sign up</a>
 </div>
 
 </div>
+
+<script>
+
+// MPIN VALIDATION
+document.getElementById("mpin").addEventListener("input", function(){
+
+this.value=this.value.replace(/\D/g,'')
+
+let msg=document.getElementById("mpinMsg")
+
+if(this.value.length<4){
+msg.textContent="MPIN must be at least 4 digits"
+msg.className="strength error"
+}else{
+msg.textContent=""
+}
+
+})
+
+// SHOW/HIDE MPIN
+
+function toggleMPIN(){
+
+let mpin=document.getElementById("mpin")
+
+if(mpin.type==="password"){
+mpin.type="text"
+}else{
+mpin.type="password"
+}
+
+}
+
+</script>
 
 </body>
 </html>
