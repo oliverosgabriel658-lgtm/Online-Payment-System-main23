@@ -1,0 +1,111 @@
+:root {
+    --bg-color: #F1F5F9;
+    --border-gray: #E2E8F0;
+    --text-dark: #1E293B;
+    --text-muted: #64748B;
+}
+
+body {
+    background-color: var(--bg-color);
+    font-family: 'Inter', sans-serif;
+    margin: 0;
+    color: var(--text-dark);
+}
+
+.top-nav-bar {
+    background-color: #FFFFFF;
+    padding: 18px 40px;
+    border-bottom: 1px solid var(--border-gray);
+}
+
+.back-link {
+    text-decoration: none;
+    color: var(--text-muted);
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.page-wrapper {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 40px 20px;
+}
+
+.header-title-row {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 30px;
+}
+
+.logo-box {
+    background: #0047FF;
+    color: white;
+    width: 45px;
+    height: 45px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    font-size: 24px;
+    font-weight: 800;
+}
+
+.page-header h1 { font-size: 28px; margin: 0; font-weight: 700; }
+.page-header p { color: var(--text-muted); margin: 5px 0 0 0; }
+
+.search-container { margin-bottom: 40px; }
+.search-wrapper {
+    background: white;
+    border: 1px solid var(--border-gray);
+    border-radius: 12px;
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.search-input {
+    border: none;
+    outline: none;
+    width: 100%;
+    font-size: 16px;
+    color: var(--text-dark);
+}
+
+.biller-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 25px;
+}
+
+.biller-card {
+    background: white;
+    border: 1px solid var(--border-gray);
+    border-radius: 20px;
+    padding: 30px 20px;
+    text-align: left;
+    transition: 0.2s;
+    cursor: pointer;
+}
+
+.biller-card:hover { transform: translateY(-5px); border-color: #0047FF; }
+
+.biller-icon { font-size: 40px; margin-bottom: 15px; }
+.biller-icon.red { color: #EF4444; }
+.biller-icon.yellow { color: #EAB308; }
+.biller-icon.blue { color: #3B82F6; }
+
+.biller-card h3 { font-size: 22px; margin: 0 0 8px 0; font-weight: 700; }
+.biller-card p { color: var(--text-muted); margin: 0; font-size: 15px; }
+
+/* Para sa Row 2 layout */
+.centered-row-2 {
+    grid-column: span 1;
+}
+
+@media (max-width: 800px) {
+    .biller-grid { grid-template-columns: repeat(2, 1fr); }
+}
