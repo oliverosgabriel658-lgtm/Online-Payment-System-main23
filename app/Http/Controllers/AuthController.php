@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth; 
+use Illuminate\Support\Facades\Http; // Required for calling the Currency API
 use App\Http\Controllers\Controller;
 use App\Notifications\PaymentReceived;
+use App\Notifications\MoneyRequested; // Your new Notification blueprint
 use App\Models\User; 
 
 class AuthController extends Controller
@@ -30,7 +32,7 @@ class AuthController extends Controller
         return redirect('/')->with('success', 'Registration successful!');
     }
 
-    // --- LOGIN (Fixes the "Undefined Method" error) ---
+    // --- LOGIN ---
     public function login(Request $request)
     {
         $user = User::where('email', $request->email)
@@ -45,7 +47,7 @@ class AuthController extends Controller
         }
     }
 
-    // --- SEND PAYMENT (With Notification API) ---
+    // --- SEND PAYMENT (Existing) ---
     public function sendPayment(Request $request)
     {
         $sender = Auth::user();
@@ -97,13 +99,52 @@ class AuthController extends Controller
             ]);
         });
 
-        // Trigger Notification
         $recipientUser = User::find($recipient->id);
         if ($recipientUser) {
             $recipientUser->notify(new PaymentReceived($amount, $sender->full_name));
         }
 
         return redirect('/dashboard')->with('success', "₱" . number_format($amount, 2) . " sent successfully!");
+    }
+
+    // --- REQUEST PAYMENT (New: Integrates 2nd API) ---
+    public function storePaymentRequest(Request $request)
+    {
+        $amount = $request->amount;
+        $apiKey = env('EXCHANGE_RATE_API_KEY');
+
+        // 1. Call Currency Exchange API (Live Data)
+        $response = Http::get("https://v6.exchangerate-api.com/v6/{$apiKey}/pair/PHP/USD/{$amount}");
+        
+        $usdAmount = 0;
+        if ($response->successful()) {
+            // Extracts the conversion result from the JSON response
+            $usdAmount = $response->json()['conversion_result'];
+        }
+
+        // 2. Save Request to Database
+        DB::table('payment_requests')->insert([
+            'requester_id' => Auth::id(),
+            'recipient_email' => $request->recipient_email,
+            'amount' => $amount,
+            'usd_equivalent' => $usdAmount, // Saved for your project requirements
+            'reason' => $request->reason,
+            'status' => 'Pending',
+            'created_at' => now(),
+        ]);
+
+        // 3. Trigger Email Notification (Email API)
+        $recipient = User::where('email', $request->recipient_email)->first();
+        if ($recipient) {
+            $recipient->notify(new MoneyRequested(
+                $amount, 
+                Auth::user()->full_name, 
+                $request->reason, 
+                $usdAmount
+            ));
+        }
+
+        return redirect('/dashboard')->with('success', 'Request sent! USD Value: $' . number_format($usdAmount, 2));
     }
 
     // --- LOGOUT ---
