@@ -22,16 +22,25 @@
             <p>Deposit funds to your PayThru wallet</p>
         </header>
 
+        @if($errors->any())
+            <div style="background: #fee2e2; border-left: 4px solid #ef4444; color: #991b1b; padding: 12px; border-radius: 8px; margin-bottom: 20px; font-size: 0.9rem;">
+                {{ $errors->first() }}
+            </div>
+        @endif
+
         <div class="grid-layout">
             <div class="card">
-                <form action="#" method="POST">
+                <form action="{{ route('deposit.process') }}" method="POST">
                     @csrf
+                    
+                    <input type="hidden" name="payment_method" id="selectedMethod" value="Bank Transfer">
+
                     <label>Deposit Amount</label>
                     <div class="input-wrapper">
                         <span class="currency">₱</span>
-                        <input type="number" id="depositAmount" name="amount" placeholder="0.00" class="main-input">
+                        <input type="number" id="depositAmount" name="amount" placeholder="0.00" class="main-input" min="1" step="any" required>
                     </div>
-                    <p class="hint">Minimum deposit: 100</p>
+                    <p class="hint">Minimum deposit: 1</p>
                     
                     <div class="shortcut-container">
                         <button type="button" class="shortcut-btn" onclick="setVal(500)">₱500</button>
@@ -41,7 +50,7 @@
                     </div>
 
                     <label>Deposit Method</label>
-                    <div class="method-card active" onclick="selectMethod(this)">
+                    <div class="method-card active" onclick="selectMethod(this, 'Bank Transfer')">
                         <div class="dot-indicator"></div>
                         <div class="method-icon">
                             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="10" width="20" height="11" rx="2" ry="2"></rect><path d="M7 10v4M12 10v4M17 10v4M2 10l10-7 10 7"></path></svg>
@@ -49,11 +58,11 @@
                         <div class="method-text">
                             <span class="m-title">Bank Transfer</span>
                             <span class="m-sub">Transfer from your bank account</span>
-                            <span class="m-process">Processing: Instant to 1 business day</span>
+                            <span class="m-process">Processing: Instant via Xendit API</span>
                         </div>
                     </div>
 
-                    <div class="method-card" onclick="selectMethod(this)">
+                    <div class="method-card" onclick="selectMethod(this, 'Credit/Debit Card')">
                         <div class="dot-indicator"></div>
                         <div class="method-icon">
                             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
@@ -65,18 +74,12 @@
                         </div>
                     </div>
 
-                    <div class="reference-group">
-                        <label>Reference Number (Optional)</label>
-                        <input type="text" placeholder="Enter bank reference number" class="main-input">
-                        <p class="hint">If you've already made a bank transfer, enter the reference number here for faster processing.</p>
-                    </div>
-
-                    <div class="instruction-box">
+                    <div class="instruction-box" id="instructionBox">
                         <strong>Bank Transfer Instructions:</strong>
                         <p>Bank: <b>BDO Unibank</b></p>
                         <p>Account Name: <b>PayThru Philippines Inc.</b></p>
                         <p>Account Number: <b>0123-4567-8901</b></p>
-                        <p class="ins-footer">After transferring, submit this form with the reference number.</p>
+                        <p class="ins-footer">Your session will automatically link directly with Xendit Sandbox verification lines.</p>
                     </div>
 
                     <button type="submit" class="add-money-btn">+ Add Money</button>
@@ -101,9 +104,9 @@
                         Important Notes
                     </div>
                     <ul>
-                        <li>Credit card deposits are processed instantly.</li>
-                        <li>Bank transfers may take up to 1 business day.</li>
-                        <li>Keep your reference number for tracking.</li>
+                        <li>All API deposits are processed inside a secured developer sandbox.</li>
+                        <li>No actual money transactions or legal banking credentials are required.</li>
+                        <li>Transactions immediately clear and populate your live ledger tracking records.</li>
                     </ul>
                 </div>
             </div>
@@ -119,9 +122,20 @@
             document.getElementById('displayAmt').innerText = f;
             document.getElementById('displayTotal').innerText = f;
         }
-        function selectMethod(el) {
+        
+        // UPDATED: Dynamically records your selection choice into the hidden tracking field
+        function selectMethod(el, methodName) {
             document.querySelectorAll('.method-card').forEach(c => c.classList.remove('active'));
             el.classList.add('active');
+            document.getElementById('selectedMethod').value = methodName;
+
+            // Simple UI toggler for the static bank instructions box card view component
+            let box = document.getElementById('instructionBox');
+            if(methodName === 'Credit/Debit Card') {
+                box.style.display = 'none';
+            } else {
+                box.style.display = 'block';
+            }
         }
     </script>
 </body>

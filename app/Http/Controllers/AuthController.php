@@ -5,10 +5,10 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth; 
-use Illuminate\Support\Facades\Http; // Required for calling the Currency API
+use Illuminate\Support\Facades\Http; 
 use App\Http\Controllers\Controller;
 use App\Notifications\PaymentReceived;
-use App\Notifications\MoneyRequested; // Your new Notification blueprint
+use App\Notifications\MoneyRequested; 
 use App\Models\User; 
 
 class AuthController extends Controller
@@ -47,7 +47,7 @@ class AuthController extends Controller
         }
     }
 
-    // --- SEND PAYMENT (Existing) ---
+    // --- SEND PAYMENT ---
     public function sendPayment(Request $request)
     {
         $sender = Auth::user();
@@ -107,33 +107,44 @@ class AuthController extends Controller
         return redirect('/dashboard')->with('success', "₱" . number_format($amount, 2) . " sent successfully!");
     }
 
-    // --- REQUEST PAYMENT (New: Integrates 2nd API) ---
+    // --- REQUEST PAYMENT ---
     public function storePaymentRequest(Request $request)
     {
-        $amount = $request->amount;
-        $apiKey = env('EXCHANGE_RATE_API_KEY');
-
-        // 1. Call Currency Exchange API (Live Data)
-        $response = Http::get("https://v6.exchangerate-api.com/v6/{$apiKey}/pair/PHP/USD/{$amount}");
-        
-        $usdAmount = 0;
-        if ($response->successful()) {
-            // Extracts the conversion result from the JSON response
-            $usdAmount = $response->json()['conversion_result'];
-        }
-
-        // 2. Save Request to Database
-        DB::table('payment_requests')->insert([
-            'requester_id' => Auth::id(),
-            'recipient_email' => $request->recipient_email,
-            'amount' => $amount,
-            'usd_equivalent' => $usdAmount, // Saved for your project requirements
-            'reason' => $request->reason,
-            'status' => 'Pending',
-            'created_at' => now(),
+        // 1. Form Validation matching incoming parameters exactly
+        $request->validate([
+            'recipient_email' => 'required|email',
+            'amount'          => 'required|numeric|min:1',
+            'reason'          => 'nullable|string',
+            'due_date'        => 'nullable',
         ]);
 
-        // 3. Trigger Email Notification (Email API)
+        $amount = $request->amount;
+        $apiKey = env('EXCHANGE_RATE_API_KEY');
+        $usdAmount = 0;
+
+        // 2. Call Currency Exchange API securely with try-catch wrapper
+        try {
+            $response = Http::timeout(5)->get("https://v6.exchangerate-api.com/v6/{$apiKey}/pair/PHP/USD/{$amount}");
+            if ($response->successful()) {
+                $usdAmount = $response->json()['conversion_result'] ?? 0;
+            }
+        } catch (\Exception $e) {
+            $usdAmount = 0; // Fallback smoothly to 0 on internet/API failure
+        }
+
+        // 3. Save Request to payment_requests table securely
+        DB::table('payment_requests')->insert([
+            'requester_id'    => Auth::id(),
+            'recipient_email' => $request->recipient_email,
+            'amount'          => $amount,
+            'usd_equivalent'  => $usdAmount, 
+            'reason'          => $request->reason,
+            'due_date'        => $request->due_date,
+            'status'          => 'Pending',
+            'created_at'      => now(),
+        ]);
+
+        // 4. Trigger Email Notification (Email API setup matching Mailtrap templates)
         $recipient = User::where('email', $request->recipient_email)->first();
         if ($recipient) {
             $recipient->notify(new MoneyRequested(
@@ -144,7 +155,50 @@ class AuthController extends Controller
             ));
         }
 
-        return redirect('/dashboard')->with('success', 'Request sent! USD Value: $' . number_format($usdAmount, 2));
+        // FIXED: Drop USD information entirely and display only requested PHP amount
+        return redirect('/dashboard')->with('success', 'Request sent successfully! Amount: ₱' . number_format($amount, 2));
+    }
+
+    // --- PASSWORD RECOVERY (Functional Reset Workflow) ---
+    public function showForgotForm()
+    {
+        return view('forgot');
+    }
+
+    public function resetMpin(Request $request)
+    {
+        // 1. Validate Form Inputs
+        $request->validate([
+            'email'        => 'required|email',
+            'phone_number' => 'required|string',
+            'new_mpin'     => 'required|string|digits:6',
+        ]);
+
+        // 2. Locate matching account profile records using verification criteria matching paythru_users setup
+        $userRecord = DB::table('paythru_users')
+            ->where('email', $request->email)
+            ->where('phone_number', $request->phone_number)
+            ->first();
+
+        if (!$userRecord) {
+            return redirect()->back()->withInput()->withErrors([
+                'email' => 'The provided account credentials do not match our system records.'
+            ]);
+        }
+
+        // 3. Perform string updates matching your unhashed auth schema table configurations
+        DB::table('paythru_users')
+            ->where('id', $userRecord->id)
+            ->update([
+                'mpin'       => $request->new_mpin,
+                'updated_at' => now()
+            ]);
+
+        // 4. Resolve Eloquent structure model to auto-authenticate user into home context dashboard safely
+        $user = User::find($userRecord->id);
+        Auth::login($user);
+
+        return redirect('/dashboard')->with('success', 'Your MPIN has been reset successfully.');
     }
 
     // --- LOGOUT ---

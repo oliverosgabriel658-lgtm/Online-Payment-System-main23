@@ -1,4 +1,3 @@
-/* login.css */
 * {
     margin: 0;
     padding: 0;
@@ -6,16 +5,60 @@
     font-family: 'Inter', sans-serif;
 }
 
-/* Update this in both login.css AND register.css */
 body {
     min-height: 100vh;
+    background-color: #f8fafc; /* Matches Register background color exactly */
+    overflow-x: hidden;
+}
+
+/* Split Column Layout Architecture */
+.split-container {
+    display: flex;
+    min-height: 100vh;
+    width: 100%;
+}
+
+.brand-panel {
+    flex: 1.1; 
+    background-color: #3b82f6; /* Blue tint explicitly matched to your Register page left panel */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    overflow: hidden;
+}
+
+/* Pure CSS Typography Logo Elements */
+.brand-typography {
+    font-size: clamp(3.5rem, 7vw, 6rem); 
+    font-weight: 500;
+    color: #ffffff;
+    letter-spacing: -0.03em;
+    user-select: none;
+    display: flex;
+    align-items: center;
+}
+
+.brand-peso {
+    font-weight: 400;
+    margin-right: -0.02em; 
+}
+
+.brand-bold {
+    font-weight: 700;
+}
+
+.form-panel {
+    flex: 0.9;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    background-color: #e8ecf1; /* <--- THIS IS THE SLIGHTLY BLUE COLOR */
+    background-color: #ffffff; /* Matches white form canvas background */
+    padding: 40px 40px 40px 110px; /* Identical tracking alignment spacing offset */
 }
 
+/* Card Presentation Elements */
 .card {
     width: 420px;
     background: white;
@@ -23,7 +66,7 @@ body {
     border-radius: 25px;
     border: 1px solid #d1d1d1;
     text-align: center;
-    margin: auto; 
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.03);
 }
 
 .logo {
@@ -51,6 +94,7 @@ h1 {
     margin-bottom: 30px;
 }
 
+/* Input Fields Structuring */
 .input-wrapper {
     text-align: left;
     margin-bottom: 18px;
@@ -75,6 +119,7 @@ label {
     color: #888;
     display: flex;
     align-items: center;
+    pointer-events: none;
 }
 
 input {
@@ -84,6 +129,11 @@ input {
     border: 1px solid #666;
     font-size: 16px;
     outline: none;
+    transition: border-color 0.2s ease;
+}
+
+input:focus {
+    border-color: #0047FF;
 }
 
 .toggle {
@@ -92,6 +142,7 @@ input {
     cursor: pointer;
     font-size: 14px;
     color: #0047FF;
+    user-select: none;
 }
 
 .options-row {
@@ -134,6 +185,11 @@ input {
     cursor: pointer;
     font-size: 20px;
     font-weight: 500;
+    transition: background 0.2s ease;
+}
+
+.login-btn:hover {
+    background: #0036d6;
 }
 
 .signup-text {
@@ -146,10 +202,23 @@ input {
     text-decoration: none;
 }
 
+/* Footer Section */
 footer {
     width: 100%;
     text-align: center;
     padding: 20px 0;
     font-size: 13px;
     color: #888;
+    margin-top: 32px;
+}
+
+/* Responsive breakpoint handling matching register configuration */
+@media (max-width: 950px) {
+    .brand-panel {
+        display: none;
+    }
+    .form-panel {
+        background-color: #f8fafc;
+        padding: 40px 20px;
+    }
 }

@@ -9,15 +9,19 @@ class Transaction extends Model
 {
     use HasFactory;
 
-    // This tells Laravel which table to use
     protected $table = 'transactions';
 
-    // These are the columns that can be filled
+    public $timestamps = false;
+
+    // FIXED: Added 'description' and 'reference_number' so Laravel allows saving/reading them
     protected $fillable = [
         'user_id',
         'type',
         'amount',
         'reference_number',
-        'status'
+        'description', 
+        'status',
+        'created_at',
+        'updated_at'
     ];
 }

@@ -11,10 +11,18 @@ class User extends Authenticatable
 {
     use HasFactory, Notifiable;
 
-    // Specifies your custom table name
+    /**
+     * Specifies your custom table name
+     *
+     * @var string
+     */
     protected $table = 'paythru_users';
 
-    // Fields that are mass-assignable
+    /**
+     * Fields that are mass-assignable
+     *
+     * @var array<int, string>
+     */
     protected $fillable = [
         'full_name',
         'email',
@@ -24,7 +32,11 @@ class User extends Authenticatable
         'balance',
     ];
 
-    // Security: keep sensitive data out of arrays/JSON
+    /**
+     * Security: keep sensitive data out of arrays/JSON
+     *
+     * @var array<int, string>
+     */
     protected $hidden = [
         'mpin',
         'remember_token',

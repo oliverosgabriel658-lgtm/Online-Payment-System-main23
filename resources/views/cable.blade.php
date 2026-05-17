@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pay Cable Bill - PayThru</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ asset('css/cable.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/water.css') }}">
 </head>
 <body>
 
@@ -18,45 +18,60 @@
 
     <div class="page-wrapper">
         <header class="page-header">
-            <div class="biller-icon-large" style="color: #0047FF;">
-                <svg width="50" height="50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="15" rx="2" ry="2"></rect><polyline points="17 2 12 7 7 2"></polyline></svg>
-            </div>
+            <div class="biller-icon-large">📺</div>
             <div class="header-text">
-                <h1>Sky Cable</h1>
-                <p>Cable</p>
+                <h1 id="headerTitle">Sky Cable</h1>
+                <p>Cable TV Services</p>
             </div>
         </header>
 
         <div class="grid-layout">
             <div class="payment-card">
-                <form action="#" method="POST">
+                <form action="{{ url('/pay-bill/electricity') }}" method="POST">
                     @csrf
+                    
+                    <div class="form-group">
+                        <label>Select Cable Provider</label>
+                        <select name="biller_name" class="main-input" id="billerSelect" onchange="updateBillerData(this.value)">
+                            <option value="Sky Cable">Sky Cable</option>
+                            <option value="Cignal TV">Cignal TV</option>
+                        </select>
+                    </div>
+
                     <div class="form-group">
                         <label>Account Number</label>
-                        <input type="tel" placeholder="Enter your account number" class="main-input" oninput="this.value = this.value.replace(/[^0-9]/g, '');">
+                        <input type="tel" 
+                            name="account_number"
+                            id="accInput"
+                            placeholder="Enter account number" 
+                            class="main-input @error('account_number') is-invalid @enderror" 
+                            oninput="this.value = this.value.replace(/[^0-9]/g, '');" 
+                            required>
+                        @error('account_number')
+                            <span style="color: #ef4444; font-size: 12px;">{{ $message }}</span>
+                        @enderror
                     </div>
 
                     <div class="form-group">
                         <label>Amount to Pay</label>
                         <div class="input-with-symbol">
                             <span class="currency-symbol">₱</span>
-                            <input type="number" id="billAmount" placeholder="0.00" class="main-input amount-input">
+                            <input type="number" name="amount" id="billAmount" placeholder="0.00" class="main-input amount-input" step="0.01" required>
                         </div>
                     </div>
 
                     <div class="shortcut-container">
-                        <button type="button" class="shortcut-btn" onclick="setVal(500)">₱500</button>
-                        <button type="button" class="shortcut-btn" onclick="setVal(1000)">₱1000</button>
-                        <button type="button" class="shortcut-btn" onclick="setVal(2000)">₱2000</button>
-                        <button type="button" class="shortcut-btn" onclick="setVal(5000)">₱5000</button>
+                        <button type="button" class="shortcut-btn" onclick="setVal(299)">₱299</button>
+                        <button type="button" class="shortcut-btn" onclick="setVal(549)">₱549</button>
+                        <button type="button" class="shortcut-btn" onclick="setVal(999)">₱999</button>
+                        <button type="button" class="shortcut-btn" onclick="setVal(1499)">₱1499</button>
                     </div>
 
                     <div class="status-info-box">
-                        <p>Payment will be processed instantly. Your Sky Cable account will be credited within 1-2 business days.</p>
+                        <p>Payment will be processed instantly. Your <span id="infoBiller">Sky Cable</span> account will be credited within 1-2 business days.</p>
                     </div>
 
                     <button type="submit" class="submit-pay-btn">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" style="margin-right: 8px;"><rect x="2" y="5" width="20" height="14" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line></svg>
                         Pay Bill
                     </button>
                 </form>
@@ -65,21 +80,44 @@
             <div class="summary-container">
                 <div class="summary-card">
                     <h3>Payment Summary</h3>
-                    <div class="summary-row"><span>Bill Amount</span><span id="displayAmt">₱ 0.00</span></div>
-                    <div class="summary-row"><span>Service Fee</span><span>₱ 15.00</span></div>
+                    <div class="summary-row">
+                        <span>Bill Amount</span>
+                        <span id="displayAmt">₱ 0.00</span>
+                    </div>
+                    <div class="summary-row">
+                        <span>Service Fee</span>
+                        <span>₱ 15.00</span>
+                    </div>
                     <hr class="divider">
-                    <div class="total-row"><span>Total</span><span id="displayTotal">₱ 15.00</span></div>
+                    <div class="total-row">
+                        <span>Total</span>
+                        <span id="displayTotal">₱ 15.00</span>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
+        function updateBillerData(val) {
+            document.getElementById('headerTitle').innerText = val;
+            document.getElementById('infoBiller').innerText = val;
+            const input = document.getElementById('accInput');
+            
+            if(val === 'Sky Cable') {
+                input.placeholder = "Enter your account number";
+            } else {
+                input.placeholder = "Enter your account number";
+            }
+        }
+
         function setVal(v) { 
             document.getElementById('billAmount').value = v; 
             updateSum(v); 
         }
+
         document.getElementById('billAmount').addEventListener('input', (e) => updateSum(e.target.value));
+
         function updateSum(v) {
             let amt = parseFloat(v) || 0;
             let total = amt + 15;

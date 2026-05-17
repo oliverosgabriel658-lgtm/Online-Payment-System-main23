@@ -5,8 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pay Internet Bill - PayThru</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ asset('css/internet.css') }}">
-</head>
+    <link rel="stylesheet" href="{{ asset('css/water.css') }}"> </head>
 <body>
 
     <nav class="top-nav-bar">
@@ -18,50 +17,67 @@
 
     <div class="page-wrapper">
         <header class="page-header">
-    <div class="biller-icon-large">
-        <svg width="60" height="60" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M12 18C13.1046 18 14 17.1046 14 16C14 14.8954 13.1046 14 12 14C10.8954 14 10 14.8954 10 16C10 17.1046 10.8954 18 12 18Z" fill="#FF007A"/>
-            <path d="M7.05005 11.05C8.3633 9.73675 10.1441 9 12 9C13.8559 9 15.6367 9.73675 16.95 11.05" stroke="#FF007A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M4.22003 8.22C6.28114 6.15889 9.07675 5 12 5C14.9233 5 17.7189 6.15889 19.78 8.22" stroke="#FF007A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M1.39001 5.39C4.20063 2.57938 8.01261 1 12 1C15.9874 1 19.7994 2.57938 22.61 5.39" stroke="#FF007A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-    </div>
-    <div class="header-text">
-        <h1>PLDT Fibr</h1>
-        <p>Internet</p>
-    </div>
-</header>
+            <div class="biller-icon-large">🌐</div>
+            <div class="header-text">
+                <h1 id="headerTitle">WIFI / Internet</h1>
+                <p>Internet Services</p>
+            </div>
+        </header>
 
         <div class="grid-layout">
             <div class="payment-card">
-                <form action="#" method="POST">
+                <form action="{{ url('/pay-bill/electricity') }}" method="POST">
                     @csrf
+                    
                     <div class="form-group">
-                        <label>Account Number</label>
+                        <label>Select Internet Provider</label>
+                        <select name="biller_name" class="main-input" id="billerSelect" onchange="updateBillerName(this.value)">
+                            <option value="PLDT Home">PLDT Home</option>
+                            <option value="Globe At Home">Globe At Home</option>
+                            <option value="Converge ICT">Converge ICT</option>
+                            <option value="DITO Telecommunity">DITO Telecommunity</option>
+                            <option value="Sky Fiber">Sky Fiber</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Account Number / Subscriber ID</label>
                         <input type="tel" 
+                            name="account_number"
                             placeholder="Enter your account number" 
-                            class="main-input" 
+                            class="main-input @error('account_number') is-invalid @enderror" 
                             oninput="this.value = this.value.replace(/[^0-9]/g, '');" 
-                            pattern="[0-9]*">
+                            value="{{ old('account_number') }}"
+                            required>
+                        @error('account_number')
+                            <span style="color: #ef4444; font-size: 12px;">{{ $message }}</span>
+                        @enderror
                     </div>
 
                     <div class="form-group">
                         <label>Amount to Pay</label>
                         <div class="input-with-symbol">
                             <span class="currency-symbol">₱</span>
-                            <input type="number" id="billAmount" placeholder="0.00" class="main-input amount-input">
+                            <input type="number" 
+                                name="amount" 
+                                id="billAmount" 
+                                placeholder="0.00" 
+                                class="main-input amount-input"
+                                step="0.01"
+                                value="{{ old('amount') }}"
+                                required>
                         </div>
                     </div>
 
                     <div class="shortcut-container">
-                        <button type="button" class="shortcut-btn" onclick="setVal(500)">₱500</button>
-                        <button type="button" class="shortcut-btn" onclick="setVal(1000)">₱1000</button>
-                        <button type="button" class="shortcut-btn" onclick="setVal(2000)">₱2000</button>
-                        <button type="button" class="shortcut-btn" onclick="setVal(5000)">₱5000</button>
+                        <button type="button" class="shortcut-btn" onclick="setVal(1299)">₱1299</button>
+                        <button type="button" class="shortcut-btn" onclick="setVal(1699)">₱1699</button>
+                        <button type="button" class="shortcut-btn" onclick="setVal(2099)">₱2099</button>
+                        <button type="button" class="shortcut-btn" onclick="setVal(2499)">₱2499</button>
                     </div>
 
                     <div class="status-info-box">
-                        <p>Payment will be processed instantly. Your PLDT Fibr account will be credited within 1-2 business days.</p>
+                        <p>Payment will be processed instantly. Your <span id="infoBiller">PLDT Home</span> account will be credited within 24 hours.</p>
                     </div>
 
                     <button type="submit" class="submit-pay-btn">
@@ -75,7 +91,7 @@
                 <div class="summary-card">
                     <h3>Payment Summary</h3>
                     <div class="summary-row">
-                        <span>Bill Amount</span>
+                        <span>Monthly Bill</span>
                         <span id="displayAmt">₱ 0.00</span>
                     </div>
                     <div class="summary-row">
@@ -93,11 +109,18 @@
     </div>
 
     <script>
+        function updateBillerName(val) {
+            document.getElementById('headerTitle').innerText = val;
+            document.getElementById('infoBiller').innerText = val;
+        }
+
         function setVal(v) { 
             document.getElementById('billAmount').value = v; 
             updateSum(v); 
         }
+
         document.getElementById('billAmount').addEventListener('input', (e) => updateSum(e.target.value));
+
         function updateSum(v) {
             let amt = parseFloat(v) || 0;
             let total = amt + 15;

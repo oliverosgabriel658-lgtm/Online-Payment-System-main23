@@ -3,6 +3,8 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\WalletController;
+use App\Http\Controllers\PaymentController;
+use App\Http\Controllers\UserController; // 1. IMPORT THE USER CONTROLLER
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
@@ -20,6 +22,10 @@ Route::post('/register-user', [AuthController::class, 'register']);
 Route::post('/login-user', [AuthController::class, 'login']);
 Route::get('/logout', [AuthController::class, 'logout'])->name('logout');
 
+// --- PASSWORD RECOVERY ROUTES ---
+Route::get('/forgot-password', [AuthController::class, 'showForgotForm'])->name('password.request');
+Route::post('/forgot-password', [AuthController::class, 'resetMpin'])->name('password.update');
+
 
 // --- PROTECTED ROUTES (Requires Login) ---
 Route::middleware(['auth'])->group(function () {
@@ -34,19 +40,18 @@ Route::middleware(['auth'])->group(function () {
         return view('sendpayment');
     })->name('payment.view');
     
-    // Updated this line to use AuthController and match the URL in your form
-    Route::post('/send-payment', [AuthController::class, 'sendPayment'])->name('payment.send');
+    Route::post('/send-payment', [PaymentController::class, 'send'])->name('payment.send');
 
     // --- ADD MONEY ---
     Route::get('/add-money', function () {
         return view('addmoney'); 
     })->name('add.money');
     
-    Route::post('/add-money', [WalletController::class, 'deposit'])->name('deposit.store');
+    // FIXED: Form routes to PaymentController@deposit and matches name('deposit.process') perfectly!
+    Route::post('/deposit', [PaymentController::class, 'deposit'])->name('deposit.process');
 
     // --- TRANSACTIONS ---
     Route::get('/transactions', function () {
-        // Fetching transactions from the DB table for the logged-in user
         $transactions = DB::table('transactions')
             ->where('user_id', Auth::id())
             ->orderBy('created_at', 'desc')
@@ -55,24 +60,41 @@ Route::middleware(['auth'])->group(function () {
         return view('transaction', compact('transactions'));
     })->name('transactions.index');
 
+    // --- REQUEST PAYMENT ---
     Route::get('/request-payment', function () {
         return view('requestpayment');
     })->name('request.payment');
 
-    // Bills Payment Group
+    Route::post('/request-payment', [AuthController::class, 'storePaymentRequest'])->name('payment.request.store');
+
+    // --- BILLS PAYMENT GROUP ---
     Route::prefix('pay-bill')->group(function () {
         Route::get('/', function () { return view('paybill'); })->name('pay.bill');
-        Route::get('/electricity', function () { return view('electricity'); });
-        Route::get('/water', function () { return view('water'); });
-        Route::get('/internet', function () { return view('internet'); });
-        Route::get('/mobile', function () { return view('mobile'); });
-        Route::get('/insurance', function () { return view('insurance'); });
-        Route::get('/cable', function () { return view('cable'); });
-        Route::get('/rent', function () { return view('rent'); });
+        
+        // Electricity
+        Route::get('/electricity', function () { return view('electricity'); })->name('pay.electricity');
+        Route::post('/electricity', [PaymentController::class, 'processElectricity'])->name('pay.electricity.process');
+
+        // Insurance
+        Route::get('/insurance', function () { return view('insurance'); })->name('pay.insurance');
+        // ADDED: POST handler to cleanly accept the form processing requests
+        Route::post('/insurance', [PaymentController::class, 'processInsurance'])->name('pay.insurance.process');
+
+        // Other Bills
+        Route::get('/water', function () { return view('water'); })->name('pay.water');
+        Route::get('/internet', function () { return view('internet'); })->name('pay.internet');
+        Route::get('/mobile', function () { return view('mobile'); })->name('pay.mobile');
+        Route::get('/cable', function () { return view('cable'); })->name('pay.cable');
+        Route::get('/rent', function () { return view('rent'); })->name('pay.rent');
     });
 
-    // Settings
+    // --- SETTINGS ---
     Route::get('/settings', function () {
         return view('settings');
-    });
+    })->name('settings');
+
+    // 2. THE FUNCTIONAL UPDATE ROUTE
+    // This handles the actual database saving when you click "Save Changes" on settings page
+    Route::post('/update-settings', [UserController::class, 'updateSettings'])->name('settings.update');
+
 });

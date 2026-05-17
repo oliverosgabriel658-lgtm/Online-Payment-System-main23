@@ -20,29 +20,51 @@
         <header class="page-header">
             <div class="biller-icon-large">💧</div>
             <div class="header-text">
-                <h1>Manila Water</h1>
-                <p>Water</p>
+                <h1 id="headerTitle">Water Billing</h1>
+                <p>Utility Services</p>
             </div>
         </header>
 
         <div class="grid-layout">
             <div class="payment-card">
-                <form action="#" method="POST">
+                <form action="{{ url('/pay-bill/electricity') }}" method="POST">
                     @csrf
+                    
+                    <div class="form-group">
+                        <label>Select Water Biller</label>
+                        <select name="biller_name" class="main-input" id="billerSelect" onchange="updateBillerName(this.value)">
+                            <option value="Manila Water">Manila Water</option>
+                            <option value="Maynilad">Maynilad</option>
+                            <option value="PrimeWater">PrimeWater</option>
+                        </select>
+                    </div>
+
                     <div class="form-group">
                         <label>Account Number</label>
                         <input type="tel" 
+                            name="account_number"
                             placeholder="Enter your account number" 
-                            class="main-input" 
+                            class="main-input @error('account_number') is-invalid @enderror" 
                             oninput="this.value = this.value.replace(/[^0-9]/g, '');" 
-                            pattern="[0-9]*">
+                            value="{{ old('account_number') }}"
+                            required>
+                        @error('account_number')
+                            <span style="color: #ef4444; font-size: 12px;">{{ $message }}</span>
+                        @enderror
                     </div>
 
                     <div class="form-group">
                         <label>Amount to Pay</label>
                         <div class="input-with-symbol">
                             <span class="currency-symbol">₱</span>
-                            <input type="number" id="billAmount" placeholder="0.00" class="main-input amount-input">
+                            <input type="number" 
+                                name="amount" 
+                                id="billAmount" 
+                                placeholder="0.00" 
+                                class="main-input amount-input"
+                                step="0.01"
+                                value="{{ old('amount') }}"
+                                required>
                         </div>
                     </div>
 
@@ -54,7 +76,7 @@
                     </div>
 
                     <div class="status-info-box">
-                        <p>Payment will be processed instantly. Your Manila Water account will be credited within 1-2 business days.</p>
+                        <p>Payment will be processed instantly. Your <span id="infoBiller">Manila Water</span> account will be credited within 1-2 business days.</p>
                     </div>
 
                     <button type="submit" class="submit-pay-btn">
@@ -86,11 +108,18 @@
     </div>
 
     <script>
+        function updateBillerName(val) {
+            document.getElementById('headerTitle').innerText = val;
+            document.getElementById('infoBiller').innerText = val;
+        }
+
         function setVal(v) { 
             document.getElementById('billAmount').value = v; 
             updateSum(v); 
         }
+
         document.getElementById('billAmount').addEventListener('input', (e) => updateSum(e.target.value));
+
         function updateSum(v) {
             let amt = parseFloat(v) || 0;
             let total = amt + 15;

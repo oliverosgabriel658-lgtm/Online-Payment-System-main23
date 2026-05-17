@@ -24,18 +24,31 @@
 
         <div class="grid-layout">
             <div class="card">
-                <form action="#" method="POST">
+                @if(session('success'))
+                    <div style="color: #27ae60; background: #e8f8f5; padding: 12px; border-radius: 8px; margin-bottom: 20px; font-size: 14px; border: 1px solid #d1f2eb; text-align: center; font-weight: 500;">
+                        {{ session('success') }}
+                    </div>
+                @endif
+
+                @if(session('error'))
+                    <div style="color: #c0392b; background: #fdedec; padding: 12px; border-radius: 8px; margin-bottom: 20px; font-size: 14px; border: 1px solid #fadbd8; text-align: center; font-weight: 500;">
+                        {{ session('error') }}
+                    </div>
+                @endif
+
+                <form action="{{ route('payment.request.store') }}" method="POST">
                     @csrf
+                    
                     <div class="form-group">
-                        <label>Recipient Email</label>
-                        <input type="email" name="email" placeholder="recipient@example.com" class="main-input">
+                        <label for="recipient_email">Recipient Email</label>
+                        <input type="email" id="recipient_email" name="recipient_email" required placeholder="recipient@example.com" class="main-input" value="{{ old('recipient_email') }}">
                     </div>
 
                     <div class="form-group">
-                        <label>Amount</label>
+                        <label for="requestAmount">Amount</label>
                         <div class="input-wrapper">
                             <span class="currency">₱</span>
-                            <input type="number" id="requestAmount" name="amount" placeholder="000.00" class="main-input amount-padding">
+                            <input type="number" id="requestAmount" name="amount" min="1" step="0.01" required placeholder="000.00" class="main-input amount-padding">
                         </div>
                     </div>
                     
@@ -47,13 +60,13 @@
                     </div>
 
                     <div class="form-group">
-                        <label>Reason for Request</label>
-                        <textarea name="reason" placeholder="Add a note for the recipient...." class="main-textarea"></textarea>
+                        <label for="reason">Reason for Request</label>
+                        <textarea id="reason" name="reason" placeholder="Add a note for the recipient...." class="main-textarea"></textarea>
                     </div>
 
                     <div class="form-group">
-                        <label>Due date (Optional)</label>
-                        <input type="text" name="due_date" placeholder="mm/dd/yy" class="main-input" onfocus="(this.type='date')">
+                        <label for="due_date">Due date (Optional)</label>
+                        <input type="text" id="due_date" name="due_date" placeholder="mm/dd/yy" class="main-input" onfocus="(this.type='date')">
                     </div>
 
                     <button type="submit" class="request-btn">
@@ -70,7 +83,7 @@
                     <div class="summary-row"><span>Processing fee</span><span>₱ 0.00</span></div>
                     <hr>
                     <div class="total-row">
-                        <span>You'll Received</span>
+                        <span>You'll Receive</span>
                         <span id="reqDisplayTotal">₱ 0.00</span>
                     </div>
                 </div>
@@ -84,8 +97,15 @@
     </div>
 
     <script>
-        function setReqVal(n) { document.getElementById('requestAmount').value = n; updateReq(n); }
-        document.getElementById('requestAmount').addEventListener('input', (e) => updateReq(e.target.value));
+        function setReqVal(n) { 
+            document.getElementById('requestAmount').value = n; 
+            updateReq(n); 
+        }
+        
+        document.getElementById('requestAmount').addEventListener('input', (e) => {
+            updateReq(e.target.value);
+        });
+        
         function updateReq(v) {
             let n = parseFloat(v) || 0;
             let f = '₱ ' + n.toLocaleString(undefined, {minimumFractionDigits: 2});

@@ -11,7 +11,6 @@
 
     <nav class="top-nav-bar">
         <a href="{{ url('/pay-bill') }}" class="back-link">
-        <a href="/PayThru_App/public/pay-bill" class="back-link">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
             Back to billers
         </a>
@@ -21,30 +20,63 @@
         <header class="page-header">
             <div class="biller-icon-large">⚡</div>
             <div class="header-text">
-                <h1>Manila Electric Co.</h1>
-                <p>Electricity</p>
+                <h1>Electricity Payment</h1>
+                <p>Select provider and enter account details</p>
             </div>
         </header>
 
         <div class="grid-layout">
             <div class="payment-card">
-                <form action="#" method="POST">
+                <form action="{{ route('pay.electricity.process') }}" method="POST">
                     @csrf
+                    
+                    <div class="form-group">
+                        <label>Select Biller</label>
+                        <select name="biller_name" id="billerSelect" class="main-input" style="background-color: white;">
+                            <option value="LEYECO" {{ old('biller_name') == 'LEYECO' ? 'selected' : '' }}>LEYECO (Leyte Electric)</option>
+                            <option value="SAMELCO" {{ old('biller_name') == 'SAMELCO' ? 'selected' : '' }}>SAMELCO (Samar Electric)</option>
+                            <option value="DORELCO" {{ old('biller_name') == 'DORELCO' ? 'selected' : '' }}>DORELCO (Don Orestes Romualdez)</option>
+                            <option value="MERALCO" {{ old('biller_name') == 'MERALCO' ? 'selected' : '' }}>Manila Electric Co. (Meralco)</option>
+                        </select>
+                    </div>
+
                     <div class="form-group">
                         <label>Account Number</label>
-                        <input type="tel" 
-                            placeholder="Enter your account number" 
-                            class="main-input" 
-                            oninput="this.value = this.value.replace(/[^0-9]/g, '');" 
-                            pattern="[0-9]*">
+                        <input type="text" 
+                               name="account_number"
+                               value="{{ old('account_number') }}"
+                               placeholder="Enter your account number" 
+                               class="main-input @error('account_number') is-invalid @enderror" 
+                               oninput="this.value = this.value.replace(/[^0-9]/g, '');">
+                        
+                        @error('account_number')
+                            <span style="color: #ef4444; font-size: 13px; margin-top: 8px; display: block; font-weight: 500;">
+                                @if(Str::contains($message, 'must be'))
+                                    Invalid account number. Account number should be 6 digits.
+                                @else
+                                    {{ $message }}
+                                @endif
+                            </span>
+                        @enderror
                     </div>
 
                     <div class="form-group">
                         <label>Amount to Pay</label>
                         <div class="input-with-symbol">
                             <span class="currency-symbol">₱</span>
-                            <input type="number" id="billAmount" placeholder="0.00" class="main-input amount-input">
+                            <input type="number" 
+                                   name="amount"
+                                   id="billAmount" 
+                                   step="0.01"
+                                   value="{{ old('amount') }}"
+                                   placeholder="0.00" 
+                                   class="main-input amount-input @error('amount') is-invalid @enderror">
                         </div>
+                        @error('amount')
+                            <span style="color: #ef4444; font-size: 13px; margin-top: 8px; display: block; font-weight: 500;">
+                                {{ $message }}
+                            </span>
+                        @enderror
                     </div>
 
                     <div class="shortcut-container">
@@ -55,7 +87,7 @@
                     </div>
 
                     <div class="status-info-box">
-                        <p>Payment will be processed instantly. Your Manila Electric Co. account will be credited within 1-2 business days.</p>
+                        <p>Payment will be processed instantly. Your electricity account will be credited within 1-2 business days.</p>
                     </div>
 
                     <button type="submit" class="submit-pay-btn">
@@ -70,7 +102,7 @@
                     <h3>Payment Summary</h3>
                     <div class="summary-row">
                         <span>Bill Amount</span>
-                        <span id="displayAmt">₱ 0.00</span>
+                        <span id="displayAmt">₱ {{ number_format(old('amount', 0), 2) }}</span>
                     </div>
                     <div class="summary-row">
                         <span>Service Fee</span>
@@ -79,7 +111,7 @@
                     <hr class="divider">
                     <div class="total-row">
                         <span>Total</span>
-                        <span id="displayTotal">₱ 15.00</span>
+                        <span id="displayTotal">₱ {{ number_format(old('amount', 0) ? old('amount') + 15 : 0, 2) }}</span>
                     </div>
                 </div>
             </div>
@@ -91,13 +123,22 @@
             document.getElementById('billAmount').value = v; 
             updateSum(v); 
         }
+        
         document.getElementById('billAmount').addEventListener('input', (e) => updateSum(e.target.value));
+        
         function updateSum(v) {
             let amt = parseFloat(v) || 0;
-            let total = amt + 15;
+            let total = amt > 0 ? amt + 15 : 0;
             document.getElementById('displayAmt').innerText = '₱ ' + amt.toLocaleString(undefined, {minimumFractionDigits: 2});
             document.getElementById('displayTotal').innerText = '₱ ' + total.toLocaleString(undefined, {minimumFractionDigits: 2});
         }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            let initialVal = document.getElementById('billAmount').value;
+            if (initialVal) {
+                updateSum(initialVal);
+            }
+        });
     </script>
 </body>
 </html>
