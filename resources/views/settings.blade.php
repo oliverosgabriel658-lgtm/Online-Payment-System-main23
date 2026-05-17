@@ -77,6 +77,19 @@
             box-shadow: 0 0 0 3px rgba(0, 71, 255, 0.1);
         }
 
+        .input-group input.is-invalid {
+            border-color: var(--error-red);
+            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+        }
+
+        .error-message {
+            color: var(--error-red);
+            font-size: 0.82rem;
+            font-weight: 500;
+            margin-top: 6px;
+            display: block;
+        }
+
         .toggle-btn {
             position: absolute;
             right: 16px;
@@ -134,7 +147,7 @@
         @if(session('success'))
             <div class="alert alert-success">{{ session('success') }}</div>
         @endif
-        @if($errors->any())
+        @if($errors->any() && !$errors->has('current_mpin') && !$errors->has('new_mpin'))
             <div class="alert alert-error">{{ $errors->first() }}</div>
         @endif
 
@@ -146,14 +159,30 @@
                 <div class="form-group">
                     <label>Full Name</label>
                     <div class="input-group">
-                        <input type="text" name="full_name" value="{{ Auth::user()->full_name }}" required placeholder="Enter your name">
+                        <input type="text" 
+                               name="full_name" 
+                               class="@error('full_name') is-invalid @enderror"
+                               value="{{ old('full_name', Auth::user()->full_name) }}" 
+                               required 
+                               placeholder="Enter your name">
                     </div>
+                    @error('full_name')
+                        <span class="error-message">{{ $message }}</span>
+                    @enderror
                 </div>
                 <div class="form-group">
                     <label>Email Address</label>
                     <div class="input-group">
-                        <input type="email" name="email" value="{{ Auth::user()->email }}" required placeholder="Enter email address">
+                        <input type="email" 
+                               name="email" 
+                               class="@error('email') is-invalid @enderror"
+                               value="{{ old('email', Auth::user()->email) }}" 
+                               required 
+                               placeholder="Enter email address">
                     </div>
+                    @error('email')
+                        <span class="error-message">{{ $message }}</span>
+                    @enderror
                 </div>
             </div>
 
@@ -162,22 +191,44 @@
                 <div class="form-group">
                     <label>Current MPIN <span style="color: var(--error-red)">*</span></label>
                     <div class="input-group">
-                        <input type="password" class="numeric-pin" id="current_mpin" name="current_mpin" maxlength="6" required placeholder="Enter your 6-digit MPIN to save changes">
+                        <input type="password" 
+                               class="numeric-pin @error('current_mpin') is-invalid @enderror" 
+                               id="current_mpin" 
+                               name="current_mpin" 
+                               maxlength="6" 
+                               required 
+                               placeholder="Enter your 6-digit MPIN to save changes">
                         <span class="toggle-btn" onclick="toggleField('current_mpin', this)">Show</span>
                     </div>
+                    @error('current_mpin')
+                        <span class="error-message">{{ $message }}</span>
+                    @enderror
                 </div>
                 <hr style="border:0; border-top:1px solid #f1f5f9; margin: 24px 0;">
                 <div class="form-group">
                     <label>New MPIN (Optional)</label>
                     <div class="input-group">
-                        <input type="password" class="numeric-pin" id="new_mpin" name="new_mpin" maxlength="6" placeholder="Enter new 6-digit MPIN">
+                        <input type="password" 
+                               class="numeric-pin @error('new_mpin') is-invalid @enderror" 
+                               id="new_mpin" 
+                               name="new_mpin" 
+                               maxlength="6" 
+                               placeholder="Enter new 6-digit MPIN">
                         <span class="toggle-btn" onclick="toggleField('new_mpin', this)">Show</span>
                     </div>
+                    @error('new_mpin')
+                        <span class="error-message">{{ $message }}</span>
+                    @enderror
                 </div>
                 <div class="form-group">
                     <label>Confirm New MPIN</label>
                     <div class="input-group">
-                        <input type="password" class="numeric-pin" id="new_mpin_confirmation" name="new_mpin_confirmation" maxlength="6" placeholder="Confirm your new 6-digit MPIN">
+                        <input type="password" 
+                               class="numeric-pin" 
+                               id="new_mpin_confirmation" 
+                               name="new_mpin_confirmation" 
+                               maxlength="6" 
+                               placeholder="Confirm your new 6-digit MPIN">
                         <span class="toggle-btn" onclick="toggleField('new_mpin_confirmation', this)">Show</span>
                     </div>
                 </div>

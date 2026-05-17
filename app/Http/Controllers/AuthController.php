@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth; 
 use Illuminate\Support\Facades\Http; 
+use Illuminate\Support\Facades\Hash; // Handles secure Bcrypt encryption
 use App\Http\Controllers\Controller;
 use App\Notifications\PaymentReceived;
 use App\Notifications\MoneyRequested; 
@@ -16,17 +17,24 @@ class AuthController extends Controller
     // --- REGISTRATION ---
     public function register(Request $request)
     {
+        $request->validate([
+            'full_name'    => 'required|string|max:255',
+            'email'        => 'required|string|email|unique:paythru_users,email',
+            'phone_number' => 'required|string',
+            'mpin'         => 'required|numeric|digits:6',
+        ]);
+
         $accountNumber = 'PT-' . rand(10000000, 99999999);
 
         DB::table('paythru_users')->insert([
-            'full_name' => $request->full_name,
-            'email' => $request->email,
+            'full_name'      => $request->full_name,
+            'email'          => $request->email,
             'account_number' => $accountNumber,
-            'phone_number' => $request->phone_number,
-            'mpin' => $request->mpin, 
-            'balance' => 0.00,
-            'created_at' => now(),
-            'updated_at' => now(),
+            'phone_number'   => $request->phone_number,
+            'mpin'           => Hash::make($request->mpin), 
+            'balance'        => 0.00,
+            'created_at'     => now(),
+            'updated_at'     => now(),
         ]);
 
         return redirect('/')->with('success', 'Registration successful!');
@@ -35,16 +43,68 @@ class AuthController extends Controller
     // --- LOGIN ---
     public function login(Request $request)
     {
-        $user = User::where('email', $request->email)
-                    ->where('mpin', $request->mpin)
-                    ->first();
+        $request->validate([
+            'email' => 'required|email',
+            'mpin'  => 'required|numeric|digits:6',
+        ]);
 
-        if ($user) {
+        $user = User::where('email', $request->email)->first();
+
+        if ($user && Hash::check($request->mpin, $user->mpin)) {
             Auth::login($user); 
             return redirect('/dashboard');
         } else {
-            return back()->with('error', 'Invalid Email or MPIN.');
+            return back()->withInput()->withErrors([
+                'email' => 'Invalid Email or MPIN credentials.'
+            ]);
         }
+    }
+
+    // --- UPDATE ACCOUNT SETTINGS (FUNCTIONAL WORKFLOW) ---
+    public function updateSettings(Request $request)
+    {
+        $request->validate([
+            'full_name'    => 'required|string|max:255',
+            'email'        => 'required|email',
+            'current_mpin' => 'required|numeric|digits:6',
+            'new_mpin'     => 'nullable|numeric|digits:6|confirmed', 
+        ]);
+
+        $user = Auth::user();
+        $isMpinCorrect = false;
+
+        // SMART AUTH CHECK: Handles both plain-text entries and encrypted secure hashes
+        if (str_starts_with($user->mpin, '$2y$')) {
+            if (Hash::check($request->current_mpin, $user->mpin)) {
+                $isMpinCorrect = true;
+            }
+        } else {
+            if ($request->current_mpin === $user->mpin) {
+                $isMpinCorrect = true;
+            }
+        }
+
+        if (!$isMpinCorrect) {
+            return back()->withInput()->withErrors([
+                'current_mpin' => 'The current MPIN you entered is incorrect.'
+            ]);
+        }
+
+        $updateData = [
+            'full_name'  => $request->full_name,
+            'email'      => $request->email,
+            'updated_at' => now(),
+        ];
+
+        if ($request->filled('new_mpin')) {
+            $updateData['mpin'] = Hash::make($request->new_mpin);
+        }
+
+        DB::table('paythru_users')
+            ->where('id', $user->id)
+            ->update($updateData);
+
+        return redirect('/settings')->with('success', 'Account settings updated successfully!');
     }
 
     // --- SEND PAYMENT ---
@@ -77,25 +137,25 @@ class AuthController extends Controller
             DB::table('paythru_users')->where('id', $recipient->id)->increment('balance', $amount);
 
             DB::table('transactions')->insert([
-                'user_id' => $sender->id,
-                'type' => 'Send Money',
-                'method' => 'Wallet Transfer',
-                'amount' => $amount,
+                'user_id'          => $sender->id,
+                'type'             => 'Send Money',
+                'method'           => 'Wallet Transfer',
+                'amount'           => $amount,
                 'reference_number' => $reference,
-                'description' => "Sent to " . $recipient->full_name,
-                'status' => 'Completed',
-                'created_at' => now()
+                'description'      => "Sent to " . $recipient->full_name,
+                'status'           => 'Completed',
+                'created_at'       => now()
             ]);
 
             DB::table('transactions')->insert([
-                'user_id' => $recipient->id,
-                'type' => 'Receive Money',
-                'method' => 'Wallet Transfer',
-                'amount' => $amount,
+                'user_id'          => $recipient->id,
+                'type'             => 'Receive Money',
+                'method'           => 'Wallet Transfer',
+                'amount'           => $amount,
                 'reference_number' => $reference,
-                'description' => "Received from " . $sender->full_name,
-                'status' => 'Completed',
-                'created_at' => now()
+                'description'      => "Received from " . $sender->full_name,
+                'status'           => 'Completed',
+                'created_at'       => now()
             ]);
         });
 
@@ -110,7 +170,6 @@ class AuthController extends Controller
     // --- REQUEST PAYMENT ---
     public function storePaymentRequest(Request $request)
     {
-        // 1. Form Validation matching incoming parameters exactly
         $request->validate([
             'recipient_email' => 'required|email',
             'amount'          => 'required|numeric|min:1',
@@ -122,17 +181,15 @@ class AuthController extends Controller
         $apiKey = env('EXCHANGE_RATE_API_KEY');
         $usdAmount = 0;
 
-        // 2. Call Currency Exchange API securely with try-catch wrapper
         try {
             $response = Http::timeout(5)->get("https://v6.exchangerate-api.com/v6/{$apiKey}/pair/PHP/USD/{$amount}");
             if ($response->successful()) {
                 $usdAmount = $response->json()['conversion_result'] ?? 0;
             }
         } catch (\Exception $e) {
-            $usdAmount = 0; // Fallback smoothly to 0 on internet/API failure
+            $usdAmount = 0; 
         }
 
-        // 3. Save Request to payment_requests table securely
         DB::table('payment_requests')->insert([
             'requester_id'    => Auth::id(),
             'recipient_email' => $request->recipient_email,
@@ -144,7 +201,6 @@ class AuthController extends Controller
             'created_at'      => now(),
         ]);
 
-        // 4. Trigger Email Notification (Email API setup matching Mailtrap templates)
         $recipient = User::where('email', $request->recipient_email)->first();
         if ($recipient) {
             $recipient->notify(new MoneyRequested(
@@ -155,7 +211,6 @@ class AuthController extends Controller
             ));
         }
 
-        // FIXED: Drop USD information entirely and display only requested PHP amount
         return redirect('/dashboard')->with('success', 'Request sent successfully! Amount: ₱' . number_format($amount, 2));
     }
 
@@ -167,14 +222,12 @@ class AuthController extends Controller
 
     public function resetMpin(Request $request)
     {
-        // 1. Validate Form Inputs
         $request->validate([
             'email'        => 'required|email',
             'phone_number' => 'required|string',
-            'new_mpin'     => 'required|string|digits:6',
+            'new_mpin'     => 'required|numeric|digits:6', 
         ]);
 
-        // 2. Locate matching account profile records using verification criteria matching paythru_users setup
         $userRecord = DB::table('paythru_users')
             ->where('email', $request->email)
             ->where('phone_number', $request->phone_number)
@@ -186,15 +239,13 @@ class AuthController extends Controller
             ]);
         }
 
-        // 3. Perform string updates matching your unhashed auth schema table configurations
         DB::table('paythru_users')
             ->where('id', $userRecord->id)
             ->update([
-                'mpin'       => $request->new_mpin,
+                'mpin'       => Hash::make($request->new_mpin),
                 'updated_at' => now()
             ]);
 
-        // 4. Resolve Eloquent structure model to auto-authenticate user into home context dashboard safely
         $user = User::find($userRecord->id);
         Auth::login($user);
 

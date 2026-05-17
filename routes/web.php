@@ -4,7 +4,6 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\WalletController;
 use App\Http\Controllers\PaymentController;
-use App\Http\Controllers\UserController; // 1. IMPORT THE USER CONTROLLER
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
@@ -93,8 +92,7 @@ Route::middleware(['auth'])->group(function () {
         return view('settings');
     })->name('settings');
 
-    // 2. THE FUNCTIONAL UPDATE ROUTE
-    // This handles the actual database saving when you click "Save Changes" on settings page
-    Route::post('/update-settings', [UserController::class, 'updateSettings'])->name('settings.update');
+    // FIXED: Form now routes directly to AuthController@updateSettings to keep your update logic functional!
+    Route::post('/update-settings', [AuthController::class, 'updateSettings'])->name('settings.update');
 
 });

@@ -17,22 +17,31 @@ class PaymentController extends Controller
      */
     public function deposit(Request $request)
     {
-        // 1. Validate the user input amount (accepts ₱1 or higher for demo testing)
+        $user = Auth::user();
+
+        // 1. Validate the user input amount (Max ₱50,000 at a time constraint)
         $request->validate([
-            'amount' => 'required|numeric|min:1',
+            'amount' => 'required|numeric|min:1|max:50000',
+        ], [
+            'amount.max' => 'Transaction declined. The maximum deposit limit per transaction is ₱50,000.00.',
+            'amount.min' => 'The minimum deposit amount is ₱1.00.',
         ]);
 
-        $user = Auth::user();
         $amount = $request->amount;
+
+        // 2. COMPLIANCE CHECK: Enforce a strict ₱600,000 maximum wallet balance ceiling
+        $maxWalletCap = 600000;
+        if (($user->balance + $amount) > $maxWalletCap) {
+            return back()->withInput()->withErrors([
+                'amount' => "Deposit declined. This transaction would push your wallet balance over the maximum allowed limit of ₱" . number_format($maxWalletCap, 2) . "."
+            ]);
+        }
 
         // Generate final transaction reference string matching system format
         $reference = 'DEP-' . strtoupper(bin2hex(random_bytes(4)));
 
         /**
          * LOCAL GATEWAY SIMULATOR
-         * Bypasses external server authorization dependency. This guarantees a 100% 
-         * success rate during local tests and school presentations while keeping 
-         * database logs indistinguishable from a true live API handshake.
          */
         DB::transaction(function () use ($user, $amount, $reference) {
             // Credit balance cleanly inside your paythru_users table
@@ -46,7 +55,7 @@ class PaymentController extends Controller
                 'type' => 'deposit',
                 'amount' => $amount,
                 'reference_number' => $reference,
-                'description' => 'Xendit(Sandbox)', // Your clean, custom text format style
+                'description' => 'Xendit(Sandbox)', 
                 'status' => 'completed'
             ]);
         });
@@ -87,7 +96,7 @@ class PaymentController extends Controller
 
         DB::transaction(function () use ($sender, $recipient, $amount, $request) {
             DB::table('paythru_users')->where('id', $sender->id)->decrement('balance', $amount);
-            DB::table('paythru_users')->where('id', $recipient->id)->increment('balance', $amount);
+            DB::table('paythru_users')->where('id', $recipient->id)->increment('increment', $amount);
 
             $reference = 'PAY-' . strtoupper(bin2hex(random_bytes(4)));
 
@@ -165,23 +174,24 @@ class PaymentController extends Controller
             return back()->withInput()->withErrors(['amount' => 'Insufficient balance.']);
         }
 
-        DB::transaction(function () use ($user, $totalDeduction, $request, $billerName) {
+        DB::transaction(function () use ($user, $totalDeduction, $request, $billerName, $serviceFee) {
             DB::table('paythru_users')->where('id', $user->id)->decrement('balance', $totalDeduction);
 
             $reference = 'BILL-' . strtoupper(bin2hex(random_bytes(4)));
-            $formattedDescription = trim($billerName) . '(' . trim($request->account_number) . ')';
+            
+            $formattedDescription = trim($billerName) . ' (' . trim($request->account_number) . ') | Fee: ₱' . number_format($serviceFee, 2);
 
             Transaction::create([
                 'user_id' => $user->id,
                 'type' => 'bill_payment',
-                'amount' => $request->amount,
+                'amount' => $totalDeduction, 
                 'reference_number' => $reference,
                 'description' => $formattedDescription,
                 'status' => 'completed'
             ]);
 
             $details = [
-                'amount' => $request->amount,
+                'amount' => $totalDeduction, 
                 'ref' => $reference,
                 'reference_number' => $reference,
                 'receiver' => $billerName,
@@ -195,23 +205,22 @@ class PaymentController extends Controller
             }
         });
 
-        return redirect('/dashboard')->with('success', 'Payment of ₱' . number_format($request->amount, 2) . ' to ' . $billerName . ' was successful!');
+        return redirect('/dashboard')->with('success', 'Payment of ₱' . number_format($totalDeduction, 2) . ' (including fee) to ' . $billerName . ' was successful!');
     }
 
     /**
-     * ADDED: Bill Payments - Insurance (PhilHealth / SSS)
+     * Bill Payments - Insurance (PhilHealth / SSS)
      */
     public function processInsurance(Request $request)
     {
         $billerName = $request->input('biller_name');
         $serviceFee = 15.00;
         
-        // Dynamically match expected document format variables based on selected provider 
         if ($billerName === 'PhilHealth') {
             $accountRules = 'required|numeric|digits:12';
             $expectedDigits = 12;
         } else {
-            $accountRules = 'required|numeric|digits:10'; // Default fallback structure logic for SSS
+            $accountRules = 'required|numeric|digits:10'; 
             $expectedDigits = 10;
         }
 
@@ -229,31 +238,28 @@ class PaymentController extends Controller
         $user = Auth::user();
         $totalDeduction = $request->amount + $serviceFee;
 
-        // Balance validity mapping test
         if ($user->balance < $totalDeduction) {
-            // Sends error back to our custom blade message block alerts
             return back()->withInput()->with('error', 'Insufficient balance to complete payment, including the ₱15.00 service fee.');
         }
 
-        DB::transaction(function () use ($user, $totalDeduction, $request, $billerName) {
-            // Deduct total funds safely
+        DB::transaction(function () use ($user, $totalDeduction, $request, $billerName, $serviceFee) {
             DB::table('paythru_users')->where('id', $user->id)->decrement('balance', $totalDeduction);
 
             $reference = 'BILL-' . strtoupper(bin2hex(random_bytes(4)));
-            $formattedDescription = trim($billerName) . '(' . trim($request->account_number) . ')';
+            
+            $formattedDescription = trim($billerName) . ' (' . trim($request->account_number) . ') | Fee: ₱' . number_format($serviceFee, 2);
 
-            // Logs record matching transactional history view schemas
             Transaction::create([
                 'user_id' => $user->id,
                 'type' => 'bill_payment',
-                'amount' => $request->amount,
+                'amount' => $totalDeduction, 
                 'reference_number' => $reference,
                 'description' => $formattedDescription,
                 'status' => 'completed'
             ]);
 
             $details = [
-                'amount' => $request->amount,
+                'amount' => $totalDeduction, 
                 'ref' => $reference,
                 'reference_number' => $reference,
                 'receiver' => $billerName,
@@ -267,6 +273,6 @@ class PaymentController extends Controller
             }
         });
 
-        return redirect('/dashboard')->with('success', 'Insurance payment of ₱' . number_format($request->amount, 2) . ' to ' . $billerName . ' was processed successfully!');
+        return redirect('/dashboard')->with('success', 'Insurance payment of ₱' . number_format($totalDeduction, 2) . ' (including fee) to ' . $billerName . ' was processed successfully!');
     }
 }

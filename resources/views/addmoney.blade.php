@@ -38,15 +38,19 @@
                     <label>Deposit Amount</label>
                     <div class="input-wrapper">
                         <span class="currency">₱</span>
-                        <input type="number" id="depositAmount" name="amount" placeholder="0.00" class="main-input" min="1" step="any" required>
+                        <input type="number" id="depositAmount" name="amount" placeholder="0.00" class="main-input" min="1" max="50000" step="any" required>
                     </div>
-                    <p class="hint">Minimum deposit: 1</p>
+                    <p class="hint" style="display: flex; justify-content: space-between; color: #6b7280; font-size: 0.8rem; margin-top: 4px;">
+                        <span>Min deposit: ₱1.00</span>
+                        <span>Max per transaction: ₱50,000.00</span>
+                    </p>
                     
                     <div class="shortcut-container">
                         <button type="button" class="shortcut-btn" onclick="setVal(500)">₱500</button>
                         <button type="button" class="shortcut-btn" onclick="setVal(1000)">₱1,000</button>
                         <button type="button" class="shortcut-btn" onclick="setVal(5000)">₱5,000</button>
                         <button type="button" class="shortcut-btn" onclick="setVal(10000)">₱10,000</button>
+                        <button type="button" class="shortcut-btn" onclick="setVal(50000)">₱50,000</button>
                     </div>
 
                     <label>Deposit Method</label>
@@ -82,7 +86,7 @@
                         <p class="ins-footer">Your session will automatically link directly with Xendit Sandbox verification lines.</p>
                     </div>
 
-                    <button type="submit" class="add-money-btn">+ Add Money</button>
+                    <button type="submit" class="add-money-btn" id="submitBtn">+ Add Money</button>
                 </form>
             </div>
 
@@ -101,12 +105,12 @@
                 <div class="notes-card">
                     <div class="notes-header">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
-                        Important Notes
+                        Account Compliance Limits
                     </div>
-                    <ul>
-                        <li>All API deposits are processed inside a secured developer sandbox.</li>
-                        <li>No actual money transactions or legal banking credentials are required.</li>
-                        <li>Transactions immediately clear and populate your live ledger tracking records.</li>
+                    <ul style="padding-left: 1.2rem; font-size: 0.85rem; color: #4b5563;">
+                        <li>Maximum single transaction allowance: <b>₱50,000.00</b></li>
+                        <li>Maximum account storage capacity: <b>₱600,000.00</b></li>
+                        <li>Deposits exceeding account limits will automatically be rejected at the security gateway.</li>
                     </ul>
                 </div>
             </div>
@@ -114,22 +118,49 @@
     </div>
 
     <script>
-        function setVal(n) { document.getElementById('depositAmount').value = n; update(n); }
+        // Inject current user balance cleanly to calculate limit barriers
+        const currentBalance = parseFloat("{{ Auth::user()->balance ?? 0 }}") || 0;
+        const maxTransactionLimit = 50000;
+        const maxWalletCapacity = 600000;
+
+        function setVal(n) { 
+            document.getElementById('depositAmount').value = n; 
+            update(n); 
+        }
+
         document.getElementById('depositAmount').addEventListener('input', (e) => update(e.target.value));
+        
+        // UPDATED: Added real-time checking structure to update function
         function update(v) {
             let n = parseFloat(v) || 0;
             let f = '₱ ' + n.toLocaleString(undefined, {minimumFractionDigits: 2});
+            
             document.getElementById('displayAmt').innerText = f;
             document.getElementById('displayTotal').innerText = f;
+
+            let submitBtn = document.getElementById('submitBtn');
+            
+            // Front-end security check loop
+            if (n > maxTransactionLimit) {
+                submitBtn.innerText = "Exceeds Transaction Limit (Max ₱50k)";
+                submitBtn.style.background = "#ef4444";
+                submitBtn.disabled = true;
+            } else if ((currentBalance + n) > maxWalletCapacity) {
+                submitBtn.innerText = "Exceeds Account Limit (Max ₱600k)";
+                submitBtn.style.background = "#ef4444";
+                submitBtn.disabled = true;
+            } else {
+                submitBtn.innerText = "+ Add Money";
+                submitBtn.style.background = ""; // Falls back to your original css color scheme
+                submitBtn.disabled = false;
+            }
         }
         
-        // UPDATED: Dynamically records your selection choice into the hidden tracking field
         function selectMethod(el, methodName) {
             document.querySelectorAll('.method-card').forEach(c => c.classList.remove('active'));
             el.classList.add('active');
             document.getElementById('selectedMethod').value = methodName;
 
-            // Simple UI toggler for the static bank instructions box card view component
             let box = document.getElementById('instructionBox');
             if(methodName === 'Credit/Debit Card') {
                 box.style.display = 'none';
