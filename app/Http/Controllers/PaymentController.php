@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\Facades\Http; 
+use Illuminate\Support\Facades\Log;
 
 class PaymentController extends Controller
 {
@@ -60,6 +61,9 @@ class PaymentController extends Controller
             ]);
         });
 
+        // Refresh user session data so dashboard instantly reflects new balance
+        $user->refresh();
+
         // Redirect back to dashboard with your clean green success alert message
         return redirect('/dashboard')->with('success', '₱' . number_format($amount, 2) . ' deposited successfully!');
     }
@@ -94,11 +98,11 @@ class PaymentController extends Controller
             return back()->withInput()->withErrors(['amount' => 'Insufficient balance.']);
         }
 
-        DB::transaction(function () use ($sender, $recipient, $amount, $request) {
-            DB::table('paythru_users')->where('id', $sender->id)->decrement('balance', $amount);
-            DB::table('paythru_users')->where('id', $recipient->id)->increment('increment', $amount);
+        $reference = 'PAY-' . strtoupper(bin2hex(random_bytes(4)));
 
-            $reference = 'PAY-' . strtoupper(bin2hex(random_bytes(4)));
+        DB::transaction(function () use ($sender, $recipient, $amount, $request, $reference) {
+            DB::table('paythru_users')->where('id', $sender->id)->decrement('balance', $amount);
+            DB::table('paythru_users')->where('id', $recipient->id)->increment('balance', $amount);
 
             Transaction::create([
                 'user_id' => $sender->id,
@@ -108,21 +112,30 @@ class PaymentController extends Controller
                 'description' => $request->description ?: 'Sent to ' . $recipient->full_name,
                 'status' => 'completed'
             ]);
-
-            $details = [
-                'amount' => $amount,
-                'ref' => $reference,
-                'reference_number' => $reference,
-                'receiver' => $recipient->full_name,
-                'type' => 'Peer-to-Peer Transfer'
-            ];
-
-            if (View::exists('emails.transaction_notif')) {
-                Mail::send('emails.transaction_notif', $details, function($message) use ($sender) {
-                    $message->to($sender->email)->subject('Transaction Successful - PayThru');
-                });
-            }
         });
+
+        // Refresh dynamic user data instance fields
+        $sender->refresh();
+
+        $details = [
+            'amount' => $amount,
+            'ref' => $reference,
+            'reference_number' => $reference,
+            'receiver' => $recipient->full_name,
+            'type' => 'Peer-to-Peer Transfer'
+        ];
+
+        if (!empty($sender->email)) {
+            try {
+                if (View::exists('emails.transaction_notif')) {
+                    Mail::send('emails.transaction_notif', $details, function($message) use ($sender) {
+                        $message->to($sender->email)->subject('Transaction Successful - PayThru');
+                    });
+                }
+            } catch (\Exception $e) {
+                Log::error('P2P Mail delivery failed: ' . $e->getMessage());
+            }
+        }
 
         return redirect('/dashboard')->with('success', '₱' . number_format($amount, 2) . ' sent to ' . $recipient->full_name . ' successfully!');
     }
@@ -174,12 +187,11 @@ class PaymentController extends Controller
             return back()->withInput()->withErrors(['amount' => 'Insufficient balance.']);
         }
 
-        DB::transaction(function () use ($user, $totalDeduction, $request, $billerName, $serviceFee) {
-            DB::table('paythru_users')->where('id', $user->id)->decrement('balance', $totalDeduction);
+        $reference = 'BILL-' . strtoupper(bin2hex(random_bytes(4)));
+        $formattedDescription = trim($billerName) . ' (' . trim($request->account_number) . ') | Fee: ₱' . number_format($serviceFee, 2);
 
-            $reference = 'BILL-' . strtoupper(bin2hex(random_bytes(4)));
-            
-            $formattedDescription = trim($billerName) . ' (' . trim($request->account_number) . ') | Fee: ₱' . number_format($serviceFee, 2);
+        DB::transaction(function () use ($user, $totalDeduction, $reference, $formattedDescription) {
+            DB::table('paythru_users')->where('id', $user->id)->decrement('balance', $totalDeduction);
 
             Transaction::create([
                 'user_id' => $user->id,
@@ -189,21 +201,29 @@ class PaymentController extends Controller
                 'description' => $formattedDescription,
                 'status' => 'completed'
             ]);
-
-            $details = [
-                'amount' => $totalDeduction, 
-                'ref' => $reference,
-                'reference_number' => $reference,
-                'receiver' => $billerName,
-                'type' => 'Bill Payment'
-            ];
-
-            if (View::exists('emails.transaction_notif')) {
-                Mail::send('emails.transaction_notif', $details, function($message) use ($user) {
-                    $message->to($user->email)->subject('Bill Payment Successful - PayThru');
-                });
-            }
         });
+
+        $user->refresh();
+
+        $details = [
+            'amount' => $totalDeduction, 
+            'ref' => $reference,
+            'reference_number' => $reference,
+            'receiver' => $billerName,
+            'type' => 'Bill Payment'
+        ];
+
+        if (!empty($user->email)) {
+            try {
+                if (View::exists('emails.transaction_notif')) {
+                    Mail::send('emails.transaction_notif', $details, function($message) use ($user) {
+                        $message->to($user->email)->subject('Bill Payment Successful - PayThru');
+                    });
+                }
+            } catch (\Exception $e) {
+                Log::error('Utility Bill Mail delivery failed: ' . $e->getMessage());
+            }
+        }
 
         return redirect('/dashboard')->with('success', 'Payment of ₱' . number_format($totalDeduction, 2) . ' (including fee) to ' . $billerName . ' was successful!');
     }
@@ -239,15 +259,14 @@ class PaymentController extends Controller
         $totalDeduction = $request->amount + $serviceFee;
 
         if ($user->balance < $totalDeduction) {
-            return back()->withInput()->with('error', 'Insufficient balance to complete payment, including the ₱15.00 service fee.');
+            return back()->withInput()->withErrors(['amount' => 'Insufficient balance to complete payment, including the ₱15.00 service fee.']);
         }
 
-        DB::transaction(function () use ($user, $totalDeduction, $request, $billerName, $serviceFee) {
-            DB::table('paythru_users')->where('id', $user->id)->decrement('balance', $totalDeduction);
+        $reference = 'BILL-' . strtoupper(bin2hex(random_bytes(4)));
+        $formattedDescription = trim($billerName) . ' (' . trim($request->account_number) . ') | Fee: ₱' . number_format($serviceFee, 2);
 
-            $reference = 'BILL-' . strtoupper(bin2hex(random_bytes(4)));
-            
-            $formattedDescription = trim($billerName) . ' (' . trim($request->account_number) . ') | Fee: ₱' . number_format($serviceFee, 2);
+        DB::transaction(function () use ($user, $totalDeduction, $reference, $formattedDescription) {
+            DB::table('paythru_users')->where('id', $user->id)->decrement('balance', $totalDeduction);
 
             Transaction::create([
                 'user_id' => $user->id,
@@ -257,21 +276,29 @@ class PaymentController extends Controller
                 'description' => $formattedDescription,
                 'status' => 'completed'
             ]);
-
-            $details = [
-                'amount' => $totalDeduction, 
-                'ref' => $reference,
-                'reference_number' => $reference,
-                'receiver' => $billerName,
-                'type' => 'Insurance Contribution'
-            ];
-
-            if (View::exists('emails.transaction_notif')) {
-                Mail::send('emails.transaction_notif', $details, function($message) use ($user) {
-                    $message->to($user->email)->subject('Insurance Payment Successful - PayThru');
-                });
-            }
         });
+
+        $user->refresh();
+
+        $details = [
+            'amount' => $totalDeduction, 
+            'ref' => $reference,
+            'reference_number' => $reference,
+            'receiver' => $billerName,
+            'type' => 'Insurance Contribution'
+        ];
+
+        if (!empty($user->email)) {
+            try {
+                if (View::exists('emails.transaction_notif')) {
+                    Mail::send('emails.transaction_notif', $details, function($message) use ($user) {
+                        $message->to($user->email)->subject('Insurance Payment Successful - PayThru');
+                    });
+                }
+            } catch (\Exception $e) {
+                Log::error('Insurance Mail delivery failed: ' . $e->getMessage());
+            }
+        }
 
         return redirect('/dashboard')->with('success', 'Insurance payment of ₱' . number_format($totalDeduction, 2) . ' (including fee) to ' . $billerName . ' was processed successfully!');
     }
